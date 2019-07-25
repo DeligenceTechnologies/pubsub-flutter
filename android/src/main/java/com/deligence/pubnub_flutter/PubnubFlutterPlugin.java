@@ -16,7 +16,7 @@ import com.pubnub.api.models.consumer.PNStatus;
 import com.pubnub.api.models.consumer.pubsub.PNMessageResult;
 import com.pubnub.api.models.consumer.pubsub.PNPresenceEventResult;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import com.deligence.pubnub_flutter.model.Message;
@@ -30,13 +30,13 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 /** PubnubFlutterPlugin */
+
 public class PubnubFlutterPlugin implements MethodCallHandler {
-  /** Plugin registration. */
-  
-  public static final String PUBNUB_PUBLISH_KEY = "pub-c-950ad2a2-27c2-4571-a923-672e76be463e";
-  public static final String PUBNUB_SUBSCRIBE_KEY = "sub-c-1519beb8-ad12-11e9-a732-8a2b99383297";
+
+  public String PUBNUB_PUBLISH_KEY ;
+  public  String PUBNUB_SUBSCRIBE_KEY ;
   public PubNub pubnub;
-  public String channelName = "test";
+  ArrayList channelNames;
   public static EventChannel.EventSink messageSender;
   public static EventChannel.EventSink statusSender;
   public String uuid = "";
@@ -47,7 +47,6 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
     final MethodChannel channel = new MethodChannel(registrar.messenger(), "pubnub");
     channel.setMethodCallHandler(new PubnubFlutterPlugin());
     EventChannel messageChannel = new EventChannel(registrar.messenger(), "plugins.flutter.io/pubnub_message");
-
     messageChannel.setStreamHandler(new EventChannel.StreamHandler()
     {
       @Override
@@ -56,7 +55,6 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
         Log.d(getClass().getName(), "messageChannel.onListen");
         messageSender = events;
       }
-
       @Override
       public void onCancel(Object arguments)
       {
@@ -65,7 +63,6 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
     });
 
     EventChannel statusChannel = new EventChannel(registrar.messenger(), "plugins.flutter.io/pubnub_status");
-
     statusChannel.setStreamHandler(new EventChannel.StreamHandler()
     {
       @Override public void onListen(Object o, EventChannel.EventSink eventSink)
@@ -83,10 +80,14 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
+    System.out.println("CALL to the function is "+call.method);
     switch (call.method)
     {
-      case "create":
-        createChannel(call, result);
+      case "uuid":
+        getUuid(call, result);
+        break;
+      case "initialize":
+        initialize(call, result);
         break;
       case "subscribe":
         subscribeToChannel(call, result);
@@ -102,114 +103,124 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
     }
   }
 
-  private void createChannel(MethodCall call, Result result)
+  private void getUuid(MethodCall call, Result result){
+    String generatedUUID= java.util.UUID.randomUUID().toString();
+    result.success(generatedUUID);
+  }
+
+  private void initialize(MethodCall call, Result result)
   {
-    String publishKey = call.argument("publishKey");
-    String subscribeKey = call.argument("subscribeKey");
+    PUBNUB_PUBLISH_KEY = call.argument("publishKey");
+    PUBNUB_SUBSCRIBE_KEY = call.argument("subscribeKey");
     String secretKey = call.argument("secretKey");
-    uuid = java.util.UUID.randomUUID().toString();
+    uuid = call.argument("uuid");
 
-    Log.d(getClass().getName(), "Create pubnub with publishKey " + publishKey + ", subscribeKey " + subscribeKey + " uuid" + uuid);
+    Log.d(getClass().getName(), "Create pubnub with publishKey " + PUBNUB_PUBLISH_KEY + ", subscribeKey " + PUBNUB_SUBSCRIBE_KEY + " uuid" + uuid);
 
-    if ((publishKey != null && !publishKey.isEmpty()) && (subscribeKey != null && !subscribeKey.isEmpty()))
+    if ((PUBNUB_PUBLISH_KEY != null && !PUBNUB_PUBLISH_KEY.isEmpty()) && (PUBNUB_SUBSCRIBE_KEY != null && !PUBNUB_SUBSCRIBE_KEY.isEmpty()))
     {
       PNConfiguration pnConfiguration = new PNConfiguration();
-      pnConfiguration.setPublishKey(publishKey);
-      pnConfiguration.setSubscribeKey(subscribeKey);
+      pnConfiguration.setPublishKey(PUBNUB_PUBLISH_KEY);
+      pnConfiguration.setSubscribeKey(PUBNUB_SUBSCRIBE_KEY);
       pnConfiguration.setUuid(uuid);
-      pnConfiguration.setSecretKey(secretKey);
       pnConfiguration.setSecure(true);
       pnConfiguration.setLogVerbosity(PNLogVerbosity.BODY);
 
       pubnub = new PubNub(pnConfiguration);
+      startListener();
       Log.d(getClass().getName(), "PubNub configuration created");
-      result.success("PubNub configuration created");
+      result.success(true);
     }
     else
     {
       Log.d(getClass().getName(), "Keys should not be null");
-      result.success("Keys should not be null");
+      result.success(false);
     }
   }
 
-  private void subscribeToChannel(MethodCall call, final Result result)
-  {
-    channelName = call.argument("channelName");
-    String publishKey = call.argument("publishKey");
-    String subscribeKey = call.argument("subscribeKey");
-    String secretKey = call.argument("secretKey");
-
-    Log.d(getClass().getName(), "Attempt to Subscribe to channel: " + channelName);
-    try
+  public void startListener(){
+    pubnub.addListener(new SubscribeCallback()
     {
-      pubnub.addListener(new SubscribeCallback()
+      @Override public void status(PubNub pubnub, PNStatus status)
       {
-        @Override public void status(PubNub pubnub, PNStatus status)
-        {
-//          statusSender.success("Ready to listen messages"+pubnub.fetchMessages());
-          notifyListner(status.toString());
-//          if (status.getCategory() == PNStatusCategory.PNConnectedCategory)
-//          {
-//            Log.d(getClass().getName(), "Subscription was successful at channel " + channelName);
-//            statusSender.success("Subscription was successful at channel " + channelName);
-//            messageSender.success("Ready to listen messages");
-//            result.success(true);
-//          }
-//          if (status.getCategory() == PNStatusCategory.P)
-//          {
-//            Log.d(getClass().getName(), "Subscription was successful at channel " + channelName);
-//            statusSender.success("Subscription was successful at channel " + channelName);
-//            messageSender.success("Ready to listen messages");
-//            result.success(true);
-//          }
-//          else
-//          {
-//            Log.d(getClass().getName(), "Subscription failed at channel" + channelName);
-////            statusSender.success("Subscription failed at channel " + channelName );
-////            result.success(false);
-//          }
+        if (status.getCategory() == PNStatusCategory.PNUnexpectedDisconnectCategory) {
+          HashMap res = new HashMap();
+          res.put("status",false);
+          res.put("type","disconnected");
+          res.put("reason","This event happens when radio / connectivity is lost");
+          statusSender.success(res);
         }
-
-        @Override public void message(PubNub pubnub, final PNMessageResult message)
+        else if (status.getCategory() == PNStatusCategory.PNReconnectedCategory) {
+          HashMap res = new HashMap();
+          res.put("status",true);
+          res.put("type","reconnected");
+          res.put("reason","This event happens when radio / connectivity is lost, then regained");
+          statusSender.success(res);
+        }
+        else if (status.getCategory() == PNStatusCategory.PNDecryptionErrorCategory) {
+          HashMap res = new HashMap();
+          res.put("status",false);
+          res.put("type","error");
+          res.put("reason","This event when client configured to encrypt messages and on live data feed it received plain text.");
+          statusSender.success(res);
+        }
+        else if (status.getCategory() == PNStatusCategory.PNConnectedCategory)
         {
-          //If is not your message
-          if (message != null)
+          HashMap res = new HashMap();
+          res.put("status",true);
+          res.put("type","connected");
+          res.put("reason","HURRAY -:)   Successfully Connected");
+          statusSender.success(res);
+        }
+        else
+        {
+          HashMap res = new HashMap();
+          res.put("status",false);
+          res.put("type","failed");
+          res.put("reason","Something went wrong");
+          statusSender.success(res);
+        }
+      }
+
+      @Override public void message(PubNub pubnub, final PNMessageResult message)
+      {
+        if (message != null)
+        {
+          try
           {
-            try
-            {
-              mainHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                  statusSender.success("Help given to the thread"+message.getMessage().toString());
-                }
-              });
-//              notifyListner(message.getMessage().toString());
-//              mainHandler.post(new Runnable() {
-//                @Override
-//                public void run() {
-//                  result.success(finalPath);
-//                }
-//              });
-//              Message receivedMessage = new Gson().fromJson(message.getMessage(), Message.class);
-//              receivedMessage.setChannel(message.getChannel());
-//              receivedMessage.setPublisher(message.getPublisher());
-//              messageSender.success(receivedMessage.getMessage());
-            }
-            catch (Exception e)
-            {
-//              messageSender.success("Failed to parse message");
-              e.printStackTrace();
-            }
+            mainHandler.post(new Runnable() {
+              @Override
+              public void run() {
+                messageSender.success(message.getMessage().toString());
+              }
+            });
+          }
+          catch (Exception e)
+          {
+            System.out.println("Failed to parse message");
+            messageSender.success("Failed to parse message");
+            e.printStackTrace();
           }
         }
+      }
 
-        @Override public void presence(PubNub pubnub, PNPresenceEventResult presence)
-        {
-          Log.d(getClass().getName(), "Presence: getChannel " + presence.getChannel() + "getEvent " + presence.getEvent() + "getSubscription " + presence.getSubscription() + "getUuid " + presence.getUuid());
-        }
-      });
+      @Override public void presence(PubNub pubnub, PNPresenceEventResult presence)
+      {
+        Log.d(getClass().getName(), "Presence: getChannel " + presence.getChannel() + "getEvent " + presence.getEvent() + "getSubscription " + presence.getSubscription() + "getUuid " + presence.getUuid());
+      }
+    });
+  }
 
-      pubnub.subscribe().channels(Arrays.asList(channelName)).execute();
+
+  private void subscribeToChannel(MethodCall call, final Result result)
+  {
+     channelNames = call.argument("channelNames");
+
+    Log.d(getClass().getName(), "Attempt to Subscribe to channel: " + channelNames.toString());
+    try
+    {
+      pubnub.subscribe().channels(channelNames).execute();
+      result.success(true);
     }
     catch (Exception e)
     {
@@ -218,18 +229,12 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
     }
   }
 
-  public void notifyListner(String msg){
-    statusSender.success("RESULT"+msg);
-  }
 
   private void unSubscribeFromChannel(MethodCall call, final Result result)
   {
-    channelName = call.argument("channelName");
-    Log.d(getClass().getName(), "^%^%&^%&^%&^%&^%&^%&^%&^%&^%&^%&^%&^%^&Attempt to Unsubscribe to channel: " + channelName);
-
     try
     {
-      pubnub.unsubscribe().channels(Arrays.asList(channelName)).execute();
+      pubnub.unsubscribe().channels(channelNames).execute();
     }
     catch (Exception e)
     {
@@ -240,12 +245,10 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
 
   private void sendMessageToChannel(MethodCall call, final Result result)
   {
-    HashMap<String, String> message = new HashMap<>();
-    message.put("sender", (String)call.argument("sender"));
-    message.put("message", (String)call.argument("message"));
-    message.put("timestamp", DateTimeUtil.getTimeStampUtc());
+    HashMap<String,String> message =call.argument("data");
+    String channel=call.argument("channel");
 
-    pubnub.publish().channel(channelName).message(message).async(
+    pubnub.publish().channel(channel).message(message).async(
             new PNCallback()
             {
               @Override public void onResponse(Object object, PNStatus status)
@@ -254,13 +257,13 @@ public class PubnubFlutterPlugin implements MethodCallHandler {
                 {
                   if (!status.isError())
                   {
-                    Log.v(getClass().getName(), "publish(" + object + ")");
-//                    result.success(true);
+                    Log.v(getClass().getName(), "publish(" + object.toString() + ")");
+                    result.success(true);
                   }
                   else
                   {
-                    Log.v(getClass().getName(), "publishErr(" + status.getErrorData() + ")");
-//                    result.success(false);
+                    Log.v(getClass().getName(), "publishErr(" + status.getErrorData().toString() + ")");
+                    result.success(false);
                   }
                 }
                 catch (Exception e)

@@ -1,6 +1,6 @@
 name: pubnub_flutter
 description: A new flutter plugin project.
-version: 1.0.0
+version: 1.0.1
 authors: 
   - Deligence <flutter@deligence.com>
   - Adarsh Kumar <kadarsh.singh99@gmail.com>
@@ -10,7 +10,7 @@ uploader:
   - Adarsh Kumar <kadarsh.singh99@gmail.com>
   - Kaushal <kaushal.deligence@gmail.com>
 
-homepage: https://github.com/deligence/pubnub.git
+homepage: https://github.com/DeligenceTechnologies/pubnub-flutter
 
 environment:
   sdk: ">=2.1.0 <3.0.0"

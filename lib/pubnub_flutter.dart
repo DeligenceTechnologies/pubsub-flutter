@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:meta/meta.dart';
 
 class PubnubFlutter {
   static var messageReceived;
@@ -8,9 +9,14 @@ class PubnubFlutter {
   String publishKey;
   String subscribeKey;
   String secretKey;
-  String channelName;
+  String uuid;
+  List<String> channelName;
 
-  var args;
+  PubnubFlutter();
+
+  var args={
+    "test":"test"
+  };
 
   static const MethodChannel channelPubNub = const MethodChannel('pubnub');
   static const EventChannel messageChannel =
@@ -18,15 +24,34 @@ class PubnubFlutter {
   static const EventChannel statusChannel =
       const EventChannel('plugins.flutter.io/pubnub_status');
 
-  PubnubFlutter(
-      {this.publishKey, this.subscribeKey, this.secretKey, this.channelName}) {
+  Future<String> getUuidString() async {
+    String result = await channelPubNub.invokeMethod('uuid', args);
+    return result;
+  }
+
+  /// Initialize  Pubnub with your credential.
+  /// Returns TRUE || FALSE based on result
+  Future<bool> initialize(
+      {
+        @required String publishKey,
+      @required String subscribeKey,
+      String secretKey,
+      @required String uuid}) async {
+
+    this.publishKey = publishKey;
+    this.subscribeKey = subscribeKey;
+    this.secretKey = secretKey;
+    this.uuid = uuid;
+
     args = {
       'publishKey': publishKey,
       'subscribeKey': subscribeKey,
       'secretkey': secretKey,
-      'channelName': channelName
+      'uuid': uuid
     };
-    channelPubNub.invokeMethod('create', args);
+
+    bool result = await channelPubNub.invokeMethod('initialize', args);
+    return result;
   }
 
   unsubscribe() {
@@ -38,21 +63,37 @@ class PubnubFlutter {
     }
   }
 
-  subscribe() {
+  /// Subscribe it after Initializing the app;
+  /// Returns TRUE || FALSE based on result
+  Future<bool> subscribe({@required List<String> channelNames}) async {
+    var args={
+      "channelNames":channelNames
+    };
+    bool result;
     if (channelPubNub != null) {
-      channelPubNub.invokeMethod('subscribe', args);
+      result=await channelPubNub.invokeMethod('subscribe', args);
     } else {
+      result=false;
       new NullThrownError();
     }
+    return result;
   }
 
-  sendMessage(String message) {
-    var args = {'sender': 'Flutter', 'message': message};
+  /// Send message to a specific channel
+  /// Returns TRUE || FALSE based on result
+  Future<bool> sendMessage({@required Map<String,String> data,@required String channel}) async{
+    bool result;
+    var args={
+      "data":data,
+      "channel":channel
+    };
     if (channelPubNub != null) {
-      channelPubNub.invokeMethod('message', args);
+      result=await channelPubNub.invokeMethod('message', args);
     } else {
+      result=false;
       new NullThrownError();
     }
+    return result;
   }
 
   /// Fires whenever the a message is received.
@@ -84,3 +125,5 @@ class PubnubFlutter {
     return status;
   }
 }
+
+
