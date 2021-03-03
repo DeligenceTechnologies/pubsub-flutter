@@ -1,4 +1,4 @@
-# pubnub_flutter
+# pubsub_flutter
 
 A new flutter plugin project.
 
